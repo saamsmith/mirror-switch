@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""mirror-switch - 统一切换包管理工具镜像源
+
+优先级规则: 环境变量 > 配置文件 > 其他
+添加新包管理工具时请按此优先级实现配置方法。
+"""
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+CONFIG_FILE = Path(__file__).parent / "config.json"
+
+
+def load_config():
+    with open(CONFIG_FILE) as f:
+        return json.load(f)
+
+
+def find_pm(config, name):
+    pm = config.get(name)
+    if not pm:
+        print(f"error: unknown package manager '{name}'", file=sys.stderr)
+        print(f"supported: {', '.join(config)}", file=sys.stderr)
+        sys.exit(1)
+    return pm
+
+
+def find_mirror(pm, name):
+    m = pm.get("mirrors", {}).get(name)
+    if not m:
+        print(f"error: unknown mirror '{name}'", file=sys.stderr)
+        print(f"available: {', '.join(pm['mirrors'])}", file=sys.stderr)
+        sys.exit(1)
+    return m["url"]
+
+
+def resolve_config_path(raw):
+    return Path(raw).expanduser()
+
+
+def read_url_from_file(pm_name, path):
+    """读取当前已配置的镜像 URL，各 PM 配置格式不同"""
+    if not path.exists():
+        return None
+    text = path.read_text()
+    if pm_name == "uv":
+        # uv.toml: [[index]]\nurl = "..."
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("url ="):
+                return line.split("=", 1)[1].strip().strip('"')
+    elif pm_name == "pnpm":
+        # pnpm rc: registry=...
+        for line in text.splitlines():
+            if line.startswith("registry"):
+                return line.split("=", 1)[1].strip().strip('"')
+    return None
+
+
+def mirror_name_for_url(pm, url):
+    for name, m in pm.get("mirrors", {}).items():
+        if m["url"].rstrip("/") == url.rstrip("/"):
+            return name
+    return None
+
+
+def set_mirror(pm_name, url):
+    """写入镜像配置，各 PM 的配置文件格式不同"""
+    pm = find_pm(load_config(), pm_name)
+    path = resolve_config_path(pm["config_path"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # uv: TOML 格式
+    if pm_name == "uv":
+        path.write_text(f'[[index]]\nurl = "{url}"\ndefault = true\n')
+    # pnpm: INI 格式
+    elif pm_name == "pnpm":
+        lines = []
+        if path.exists():
+            lines = [l for l in path.read_text().splitlines() if not l.startswith("registry")]
+        lines.append(f"registry={url}")
+        path.write_text("\n".join(lines) + "\n")
+
+
+def reset_mirror(pm_name):
+    """恢复官方源：撤销 set_mirror 的改动"""
+    pm = find_pm(load_config(), pm_name)
+    path = resolve_config_path(pm["config_path"])
+
+    # uv: 删除整个配置文件（专用于镜像配置）
+    if pm_name == "uv":
+        if path.exists():
+            path.unlink()
+    # pnpm: 只移除 registry 行，保留其他配置
+    elif pm_name == "pnpm":
+        if path.exists():
+            lines = [l for l in path.read_text().splitlines() if not l.startswith("registry")]
+            path.write_text("\n".join(lines) + "\n")
+
+
+def cmd_ls():
+    config = load_config()
+    for pm_name, pm in config.items():
+        if pm_name.startswith("//"):
+            continue
+        print(f"\n{pm_name}:")
+        for mirror_name, mirror in pm.get("mirrors", {}).items():
+            print(f"  {mirror_name:15} {mirror['url']}")
+
+
+def cmd_status():
+    config = load_config()
+    for pm_name in config:
+        if pm_name.startswith("//"):
+            continue
+        pm = config[pm_name]
+
+        # 1. env var (highest priority)
+        env_var = pm.get("env_var", "")
+        if env_var:
+            val = os.environ.get(env_var)
+            if val:
+                tag = mirror_name_for_url(pm, val)
+                label = f" [{tag}]" if tag else ""
+                print(f"{pm_name:6} {val}  (env){label}")
+                continue
+
+        # 2. config file
+        cfg_path = pm.get("config_path", "")
+        if cfg_path:
+            url = read_url_from_file(pm_name, resolve_config_path(cfg_path))
+            if url:
+                tag = mirror_name_for_url(pm, url)
+                label = f" [{tag}]" if tag else ""
+                print(f"{pm_name:6} {url}  (config){label}")
+                continue
+
+        # 3. default (official)
+        official = pm.get("mirrors", {}).get("official", {}).get("url", "unknown")
+        print(f"{pm_name:6} {official}  (default)")
+
+
+def cmd_use(pm_name, mirror_name, use_env, dry_run):
+    pm = find_pm(load_config(), pm_name)
+    url = find_mirror(pm, mirror_name)
+    env_var = pm.get("env_var", "")
+    config_path = resolve_config_path(pm.get("config_path", ""))
+
+    if use_env:
+        if not env_var:
+            print(f"error: {pm_name} does not support env var", file=sys.stderr)
+            sys.exit(1)
+        if dry_run:
+            print(f"[dry-run] would print: export {env_var}={url!r}")
+            return
+        print(f"export {env_var}={url!r}")
+        print("# add the line above to ~/.zshrc or ~/.bash_profile")
+    else:
+        if dry_run:
+            print(f"[dry-run] would write {config_path}")
+            print(f"         url = {url}")
+            return
+        set_mirror(pm_name, url)
+        print(f"\u2713 {pm_name} switched to [{mirror_name}]")
+        if env_var:
+            print(f"  note: env var {env_var} takes precedence if set")
+
+
+def cmd_reset(pm_name, dry_run):
+    pm = find_pm(load_config(), pm_name)
+    config_path = resolve_config_path(pm.get("config_path", ""))
+
+    if dry_run:
+        if pm_name == "uv" and config_path.exists():
+            print(f"[dry-run] would delete {config_path}")
+        elif pm_name == "pnpm" and config_path.exists():
+            print(f"[dry-run] would remove registry= from {config_path}")
+        else:
+            print(f"[dry-run] {config_path} does not exist, nothing to reset")
+        return
+
+    reset_mirror(pm_name)
+    print(f"\u2713 {pm_name} reset to official")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Unified package manager mirror switcher")
+    parser.add_argument("--dry-run", action="store_true", help="show what would be done without actually doing it")
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("ls", help="list all available mirrors")
+    sub.add_parser("status", help="show current mirror configuration")
+
+    p_use = sub.add_parser("use", help="switch to a mirror")
+    p_use.add_argument("pm", help="package manager name")
+    p_use.add_argument("mirror", help="mirror name")
+    p_use.add_argument("-e", "--env", action="store_true", help="print export command only")
+
+    p_reset = sub.add_parser("reset", help="restore official source")
+    p_reset.add_argument("pm", help="package manager name")
+
+    args = parser.parse_args()
+
+    dry_run = getattr(args, "dry_run", False)
+
+    if args.command == "ls":
+        cmd_ls()
+    elif args.command == "status":
+        cmd_status()
+    elif args.command == "use":
+        cmd_use(args.pm, args.mirror, args.env, dry_run)
+    elif args.command == "reset":
+        cmd_reset(args.pm, dry_run)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,24 @@
+{
+  "// priority": "环境变量 > 配置文件 > 其他 —— 添加新包管理工具时请遵守此优先级",
+  "uv": {
+    "env_var": "UV_DEFAULT_INDEX",
+    "config_path": "~/.config/uv/uv.toml",
+    "mirrors": {
+      "official": { "url": "https://pypi.org/simple" },
+      "tsinghua": { "url": "https://pypi.tuna.tsinghua.edu.cn/simple" },
+      "aliyun": { "url": "https://mirrors.aliyun.com/pypi/simple" },
+      "ustc": { "url": "https://pypi.mirrors.ustc.edu.cn/simple" },
+      "douban": { "url": "https://pypi.doubanio.com/simple" }
+    }
+  },
+  "pnpm": {
+    "env_var": "pnpm_config_registry",
+    "config_path": "~/.config/pnpm/rc",
+    "mirrors": {
+      "official": { "url": "https://registry.npmjs.org/" },
+      "npmmirror": { "url": "https://registry.npmmirror.com/" },
+      "tencent": { "url": "https://mirrors.cloud.tencent.com/npm/" },
+      "huawei": { "url": "https://repo.huaweicloud.com/repository/npm/" }
+    }
+  }
+}
