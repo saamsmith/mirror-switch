@@ -31,6 +31,10 @@ Each PM's `config_path` has a different expected format — match exactly:
 - **uv** (`~/.config/uv/uv.toml`): TOML, `[[index]]\nurl = "..."\ndefault = true`
 - **pnpm** (`~/.config/pnpm/rc`): INI, `registry=...`
 
+## Git policy
+
+Only push to GitHub when the user explicitly says to. Do not auto-sync after changes.
+
 ## Commands reference
 
 ```
