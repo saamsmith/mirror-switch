@@ -35,6 +35,26 @@ Each PM's `config_path` has a different expected format — match exactly:
 
 Only push to GitHub when the user explicitly says to. Do not auto-sync after changes.
 
+## HISTORY.md 更新规则
+
+每次 build 完成后必须更新 `HISTORY.md`，格式：
+
+```markdown
+## YYYY-MM-DD HH:MM — 修改人
+
+- 修改内容描述
+  - 详细说明
+```
+
+要求：
+- 时间必须查询系统当前准确时间，不可随意填写
+- 修改人填写实际执行修改的 agent 名称（如 MIMO）
+- 每条变更独立列出，包含具体改了什么
+
+## Git 提交与历史记录
+
+每次 git commit 时同步更新 `HISTORY.md`，格式同上，内容为 git commit message。
+
 ## Commands reference
 
 ```

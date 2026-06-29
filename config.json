@@ -20,5 +20,46 @@
       "tencent": { "url": "https://mirrors.cloud.tencent.com/npm/" },
       "huawei": { "url": "https://repo.huaweicloud.com/repository/npm/" }
     }
+  },
+  "brew": {
+    "env_var": "HOMEBREW_BOTTLE_DOMAIN",
+    "config_path": null,
+    "mirrors": {
+      "official": { "url": "https://ghcr.io/v2/homebrew/core" },
+      "ustc": {
+        "url": "https://mirrors.ustc.edu.cn/homebrew-bottles",
+        "// note": "homebrew-core.git 于 2026-05-21 移除",
+        "env_vars": {
+          "HOMEBREW_API_DOMAIN": "https://mirrors.ustc.edu.cn/homebrew-bottles/api",
+          "HOMEBREW_BREW_GIT_REMOTE": "https://mirrors.ustc.edu.cn/brew.git",
+          "HOMEBREW_CORE_GIT_REMOTE": "https://mirrors.ustc.edu.cn/homebrew/homebrew-core.git"
+        }
+      },
+      "tsinghua": {
+        "url": "https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles",
+        "// note": "URL 未验证 (403)，待确认",
+        "env_vars": {
+          "HOMEBREW_API_DOMAIN": "https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles/api",
+          "HOMEBREW_BREW_GIT_REMOTE": "https://mirrors.tuna.tsinghua.edu.cn/homebrew/brew.git",
+          "HOMEBREW_CORE_GIT_REMOTE": "https://mirrors.tuna.tsinghua.edu.cn/homebrew/homebrew-core.git"
+        }
+      },
+      "aliyun": {
+        "url": "https://mirrors.aliyun.com/homebrew/homebrew-bottles",
+        "env_vars": {
+          "HOMEBREW_API_DOMAIN": "https://mirrors.aliyun.com/homebrew-bottles/api",
+          "HOMEBREW_BREW_GIT_REMOTE": "https://mirrors.aliyun.com/homebrew/brew.git",
+          "HOMEBREW_CORE_GIT_REMOTE": "https://mirrors.aliyun.com/homebrew/homebrew-core.git"
+        }
+      },
+      "tencent": {
+        "url": "https://mirrors.cloud.tencent.com/homebrew-bottles",
+        "env_vars": {
+          "HOMEBREW_API_DOMAIN": "https://mirrors.cloud.tencent.com/homebrew-bottles/api",
+          "HOMEBREW_BREW_GIT_REMOTE": "https://mirrors.cloud.tencent.com/homebrew/brew.git",
+          "HOMEBREW_CORE_GIT_REMOTE": "https://mirrors.cloud.tencent.com/homebrew/homebrew-core.git"
+        }
+      }
+    }
   }
 }

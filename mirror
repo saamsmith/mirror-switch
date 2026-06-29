@@ -34,7 +34,7 @@ def find_mirror(pm, name):
         print(f"error: unknown mirror '{name}'", file=sys.stderr)
         print(f"available: {', '.join(pm['mirrors'])}", file=sys.stderr)
         sys.exit(1)
-    return m["url"]
+    return m
 
 
 def resolve_config_path(raw):
@@ -57,6 +57,8 @@ def read_url_from_file(pm_name, path):
         for line in text.splitlines():
             if line.startswith("registry"):
                 return line.split("=", 1)[1].strip().strip('"')
+    elif pm_name == "brew":
+        return None
     return None
 
 
@@ -83,6 +85,9 @@ def set_mirror(pm_name, url):
             lines = [l for l in path.read_text().splitlines() if not l.startswith("registry")]
         lines.append(f"registry={url}")
         path.write_text("\n".join(lines) + "\n")
+    # brew: 无配置文件，仅通过环境变量配置
+    elif pm_name == "brew":
+        pass
 
 
 def reset_mirror(pm_name):
@@ -99,6 +104,9 @@ def reset_mirror(pm_name):
         if path.exists():
             lines = [l for l in path.read_text().splitlines() if not l.startswith("registry")]
             path.write_text("\n".join(lines) + "\n")
+    # brew: 无配置文件，仅通过环境变量配置
+    elif pm_name == "brew":
+        pass
 
 
 def cmd_ls():
@@ -145,20 +153,28 @@ def cmd_status():
 
 def cmd_use(pm_name, mirror_name, use_env, dry_run):
     pm = find_pm(load_config(), pm_name)
-    url = find_mirror(pm, mirror_name)
+    mirror = find_mirror(pm, mirror_name)
+    url = mirror["url"]
     env_var = pm.get("env_var", "")
-    config_path = resolve_config_path(pm.get("config_path", ""))
+    config_path_raw = pm.get("config_path")
+    env_vars = mirror.get("env_vars", {})
 
-    if use_env:
+    # brew: 无配置文件，始终走 export 路径
+    if pm_name == "brew" or use_env:
         if not env_var:
             print(f"error: {pm_name} does not support env var", file=sys.stderr)
             sys.exit(1)
         if dry_run:
             print(f"[dry-run] would print: export {env_var}={url!r}")
+            for k, v in env_vars.items():
+                print(f"[dry-run] would print: export {k}={v!r}")
             return
         print(f"export {env_var}={url!r}")
-        print("# add the line above to ~/.zshrc or ~/.bash_profile")
+        for k, v in env_vars.items():
+            print(f"export {k}={v!r}")
+        print("# add the lines above to ~/.zshrc or ~/.bash_profile")
     else:
+        config_path = resolve_config_path(config_path_raw)
         if dry_run:
             print(f"[dry-run] would write {config_path}")
             print(f"         url = {url}")
@@ -171,12 +187,37 @@ def cmd_use(pm_name, mirror_name, use_env, dry_run):
 
 def cmd_reset(pm_name, dry_run):
     pm = find_pm(load_config(), pm_name)
-    config_path = resolve_config_path(pm.get("config_path", ""))
+    config_path_raw = pm.get("config_path")
+    env_var = pm.get("env_var", "")
+
+    # brew: 无配置文件，unset 所有环境变量
+    if pm_name == "brew":
+        all_env_vars = [env_var]
+        for m in pm.get("mirrors", {}).values():
+            if isinstance(m, dict):
+                for k in m.get("env_vars", {}):
+                    if k not in all_env_vars:
+                        all_env_vars.append(k)
+        if dry_run:
+            any_set = any(os.environ.get(v) for v in all_env_vars if v)
+            if any_set:
+                for v in all_env_vars:
+                    if os.environ.get(v):
+                        print(f"[dry-run] would unset {v}")
+            else:
+                print(f"[dry-run] no HOMEBREW_* env vars set, nothing to reset")
+            return
+        for v in all_env_vars:
+            print(f"unset {v}")
+        print("# remove the HOMEBREW_* lines from ~/.zshrc or ~/.bash_profile")
+        return
+
+    config_path = resolve_config_path(config_path_raw) if config_path_raw else None
 
     if dry_run:
-        if pm_name == "uv" and config_path.exists():
+        if pm_name == "uv" and config_path and config_path.exists():
             print(f"[dry-run] would delete {config_path}")
-        elif pm_name == "pnpm" and config_path.exists():
+        elif pm_name == "pnpm" and config_path and config_path.exists():
             print(f"[dry-run] would remove registry= from {config_path}")
         else:
             print(f"[dry-run] {config_path} does not exist, nothing to reset")
