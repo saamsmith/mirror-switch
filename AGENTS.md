@@ -40,7 +40,7 @@ Only push to GitHub when the user explicitly says to. Do not auto-sync after cha
 每次 build 完成后必须更新 `HISTORY.md`，格式：
 
 ```markdown
-## YYYY-MM-DD HH:MM — 修改人
+## YYYY-MM-DD HH:MM — 修改人 [build]
 
 - 修改内容描述
   - 详细说明
@@ -53,7 +53,13 @@ Only push to GitHub when the user explicitly says to. Do not auto-sync after cha
 
 ## Git 提交与历史记录
 
-每次 git commit 时同步更新 `HISTORY.md`，格式同上，内容为 git commit message。
+每次 git commit 时同步更新 `HISTORY.md`，格式同上，后缀改为 `[git]`，内容为 git commit message。
+
+```markdown
+## YYYY-MM-DD HH:MM — 修改人 [git]
+
+- commit message 内容
+```
 
 ## Commands reference
 
