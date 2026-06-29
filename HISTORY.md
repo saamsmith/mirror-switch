@@ -11,3 +11,7 @@
 
 - feat: add Homebrew mirror support with multi-env-var config
 - docs: update HISTORY.md with git commit record
+
+## 2026-06-30 01:48 — MIMO [git]
+
+- docs: update HISTORY format rules and add TODO items
